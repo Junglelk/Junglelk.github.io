@@ -145,6 +145,108 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/05/03/%E8%AE%BE%E8%AE%A1%E7%9F%AD%E9%93%BE%E6%8E%A5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="海纳百川有容乃大，壁立千仞无欲则刚">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/05/03/%E8%AE%BE%E8%AE%A1%E7%9F%AD%E9%93%BE%E6%8E%A5/" class="post-title-link" itemprop="url">设计短链接</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2022-05-03 16:19:07 / Modified: 18:44:46" itemprop="dateCreated datePublished" datetime="2022-05-03T16:19:07+08:00">2022-05-03</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="设计短链接服务"><a href="#设计短链接服务" class="headerlink" title="设计短链接服务"></a>设计短链接服务</h1><p>文章内容出自这里<a target="_blank" rel="noopener" href="https://leetcode.com/discuss/interview-question/124658/Design-a-URL-Shortener-(-TinyURL-)-System/">Design URL Shortening service like TinyURL</a>，是力扣国际站的讨论分区内的一个系统设计，感觉有些启发性，故做搬运。</p>
+<p><strong>需求：</strong> 设计一个服务，将一个URL转换为短链接，并能够将短链接重定向至原始URL。</p>
+<p><strong>解法：</strong> 首先需要设计一个一对一映射，该映射可以将短链接转为原始URL。这涉及将此类数据保存到数据库中。</p>
+<p>我们需要检查以下问题</p>
+<ul>
+<li>短链接的长度是多少？</li>
+<li>映射函数是怎么样的？</li>
+<li>单机环境还是多极？</li>
+</ul>
+<p><strong>流量分析：</strong> 假设我们将处理1万亿条URL，如果我们可以使用62个字符<code>[a-z,A-Z,0-9]</code>来组成长度为 n 的短链接，那么我们将拥有62^n 条URL（注：严格讨论的话，显然不会有这么多，因为数字不允许放置为开头，但数量级上是差不多的）。所以，我们需要尽量降低短链接长度来满足需求即可。对于1万亿条URL，n=7 比较符合情况：62^7~=3.5万亿。</p>
+<p><strong>可行解：</strong>从简单的方式出发，我们可以假设短链接形似：<code>http://tinyurl.com/&lt;alias_hash&gt;</code> 且<code>alias_hash</code>是固定长度的字符串。</p>
+<p>首先，将所有映射关系存到数据库中，一个直接方式是将alias_hash作为每条映射记录的ID，该ID为随机生成的7位字符串。</p>
+<p>因此我们存储了<code>&lt;ID,URL&gt;</code>，当用户输入了长URL比如<code>http://www.google.com</code>，系统会创建一个随机的7个字符的字符串，比如<code>abcd123</code>作为ID并在数据库中插入一个条目<code>&lt;&quot;abcd123&quot;,http://www.google.com&gt;</code>。</p>
+<p>运行时，当用户访问了<code>http://tinyurl.com/abcd123</code>，我们依据 “abcd123”查找到相应的URL<code>http://www.google.com</code>。</p>
+<p><strong>可行解的问题：</strong>我们并不能为每一个URL生成唯一的哈希值，构造哈希时也许会导致冲突。</p>
+<p><strong>更好的解法：</strong></p>
+<p>一个更简单，但同样高效的方式是使用一个如下结构的数据库表</p>
+<blockquote>
+<p>Table Tiny_Url(</p>
+<p>ID: int PRIMARY_KEY_ AUTO_INC,</p>
+<p>Original_url:varchar,</p>
+<p>Short_url:varchar</p>
+<p>)</p>
+</blockquote>
+<p>自增的主键被用作转换：<code>(ID,10)&lt;==&gt;(short_url,BASE)</code>。无论什么时候你插入一个新的原始URL，都会返回插入数据的ID，并用该ID推导出新的短链接，发送给client。</p>
+<p><strong>代码实现：</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="built_in">string</span> <span class="title">idToShortURL</span><span class="params">(<span class="keyword">long</span> <span class="keyword">int</span> n)</span></span>&#123;</span><br><span class="line">    <span class="keyword">char</span> <span class="built_in">map</span>[] = <span class="string">&quot;abcdefghijklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ0123456789&quot;</span>;</span><br><span class="line">    <span class="built_in">string</span> shortUrl;</span><br><span class="line">    <span class="keyword">while</span>(n)&#123;</span><br><span class="line">        shortUrl.push_back(<span class="built_in">map</span>[n%<span class="number">62</span>]);</span><br><span class="line">        n/=<span class="number">62</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    reverse(shortUrl.begin(),shortUrl.end());</span><br><span class="line">    <span class="keyword">return</span> shortUrl;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">long</span> <span class="keyword">int</span> <span class="title">shortURLtoID</span><span class="params">(<span class="built_in">string</span> shortURL)</span></span>&#123;</span><br><span class="line">    <span class="keyword">long</span> <span class="keyword">int</span> id = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">for</span>(<span class="keyword">int</span> i = <span class="number">0</span>;i &lt; shortURL[i] &amp;&amp; shortURL[i]&lt;=<span class="string">&#x27;z&#x27;</span>;i++)&#123;</span><br><span class="line">        <span class="keyword">if</span>(<span class="string">&#x27;a&#x27;</span> &lt;= shortURL[i] &amp;&amp; shortURL[i] &lt;= <span class="string">&#x27;z&#x27;</span>)&#123;</span><br><span class="line">            id = id * <span class="number">62</span> + shortURL[i]-<span class="string">&#x27;a&#x27;</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span>(<span class="string">&#x27;A&#x27;</span> &lt;= shortURL[i] &amp;&amp; shortURL[i] &lt;= <span class="string">&#x27;Z&#x27;</span>)&#123;</span><br><span class="line">            id = id * <span class="number">62</span> + shortURL[i]-<span class="string">&#x27;A&#x27;</span> + <span class="number">26</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span>(<span class="string">&#x27;0&#x27;</span> &lt;= shortURL[i] &amp;&amp; shortURL[i] &lt;= <span class="string">&#x27;9&#x27;</span>)&#123;</span><br><span class="line">            id = id * <span class="number">62</span> + shortURL[i] - <span class="string">&#x27;0&#x27;</span> + <span class="number">52</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> id;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>集群：</strong></p>
+<p>如果服务需要处理大量数据，分布式存储可以增加容量。思路很简单，获取原始URL的哈希码，再转到相应的机器上，然后就是如单机一样的处理。为了路由到正确的节点，一致性哈希 <em>Consistent Hashing</em>是比较常用的。</p>
+<p><strong>获取短链接：</strong></p>
+<ul>
+<li>将原始URL通过哈希算法得到两位数字的哈希值</li>
+<li>使用哈希值在环上定位机器</li>
+<li>插入原始URL到数据库中，并使用<code>getShortURL()</code>函数获取短链接</li>
+<li>结合哈希值和短链接作为最终链接（8位）并返回</li>
+</ul>
+<p><strong>还原URL：</strong></p>
+<ul>
+<li>获取短链接的前两个字符作为哈希值</li>
+<li>使用哈希值定位机器</li>
+<li>使用剩余的6位作为id查找数据库</li>
+<li>返回原始链接</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://example.com/2021/11/29/Linux%E8%BD%AF%E4%BB%B6%E5%AE%89%E8%A3%85/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -600,12 +702,12 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">2</span>
+          <span class="site-state-item-count">3</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-tags">
-        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-count">2</span>
         <span class="site-state-item-name">tags</span>
       </div>
   </nav>
