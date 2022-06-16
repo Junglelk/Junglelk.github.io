@@ -176,7 +176,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2022-06-16 20:02:02" itemprop="dateModified" datetime="2022-06-16T20:02:02+08:00">2022-06-16</time>
+                <time title="Modified: 2022-06-16 22:35:45" itemprop="dateModified" datetime="2022-06-16T22:35:45+08:00">2022-06-16</time>
               </span>
 
           
@@ -190,7 +190,26 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="线程装饰器"><a href="#线程装饰器" class="headerlink" title="线程装饰器"></a>线程装饰器</h1><p>之前知道了线程装饰器可以用来携带某些线程独享的记录信息便于生成日志，后来一直很忙（懒），今天确实去了解了一下。但今天太晚了，不想写博客了，明天或者后天再写吧，仅作占位，估计会涉及到一些线程池相关的内容  </p>
+          <h1 id="线程装饰器"><a href="#线程装饰器" class="headerlink" title="线程装饰器"></a>线程装饰器</h1><p> <em>Mapped Diagnostic Context</em> 映射诊断上下文，即<strong>MDC</strong>，直接翻译显然怪怪的以下直接用<strong>MDC</strong>。  </p>
+<h2 id="ThreadLocal"><a href="#ThreadLocal" class="headerlink" title="ThreadLocal"></a>ThreadLocal</h2><p>这个类能使线程中的某个值与保存该值的对象关联起来。ThreadLocal对象通常用于防止对可变的单实例变量或者全局变量进行共享。举例来说，如果单线程需要维持一个全局的数据库连接，并在程序启动时初始化这个连接对象，从而避免反复创建。由于JDBC的连接对象不一定是线程安全的，所以多线程应用程序在没有协同的情况下使用全局变量时，就不是线程安全的。但将连接对象保存到ThreadLocal中，每个对象都会拥有属于自己的连接。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> ThreadLocal&lt;Connection&gt; connectionHolder = ThreadLocal.withInitial(() -&gt; DriverManager.getConnection(DB_URL));</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> Connection <span class="title">getConnection</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> connectionHolder.get();</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>最近项目中有一个业务逻辑是这样的：来了一条消息后，需要生成数个点状模型的相关数据，点与点之间没有关联，但整体对时间有要求。典型的并发需求，于是写了一个<strong>Callable</strong>的实现，丢进线程池进行执行。然后发现生成数据点的逻辑中，有涉及到获取全局的用户（<strong>User</strong>）并记录操作相关内容，在线程池中，外部全局变量为<strong>NULL</strong>，于是简单查看了一下，<strong>User</strong>的属性，发现是一个<strong>ThreadLocal</strong>变量。虽然当时尚不清楚<strong>ThreadLocal</strong>的具体用处，但规范命名的好处还是让人知道这玩意儿，只属于当前线程，在线程池中必然是不存在的。那么解决方案也很简单：在<strong>Callable</strong>实现中把这个变量塞进去即可。事实证明确实可行，但这也不由得让人考虑一些别的问题：多线程中如过遇到需要这样把外部对象传入线程中，但该对象恰好不是<strong>ThreadLocal</strong>变量呢？</p>
+<h2 id="MDC"><a href="#MDC" class="headerlink" title="MDC"></a>MDC</h2><p>使用<code>put(String,Stirng)</code>和<code>get(String)</code>的方法可以很直观的在线程间传递数据。跟踪源码实现可见：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">put</span><span class="params">(String key, String val)</span> <span class="keyword">throws</span> IllegalArgumentException </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (key == <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">&quot;key parameter cannot be null&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (mdcAdapter == <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">&quot;MDCAdapter cannot be null. See also &quot;</span> + NULL_MDCA_URL);</span><br><span class="line">    &#125;</span><br><span class="line">    mdcAdapter.put(key, val);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>再跟踪进入实现一个类<strong>BasicMDCAdapter</strong>的<code>put</code>方法，有</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">put</span><span class="params">(String key, String val)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (key == <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">&quot;key cannot be null&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        Map&lt;String, String&gt; map = inheritableThreadLocal.get();</span><br><span class="line">        <span class="keyword">if</span> (map == <span class="keyword">null</span>) &#123;</span><br><span class="line">            map = <span class="keyword">new</span> HashMap&lt;String, String&gt;();</span><br><span class="line">            inheritableThreadLocal.set(map);</span><br><span class="line">        &#125;</span><br><span class="line">        map.put(key, val);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>不难发现，存在获取<strong>Map</strong>的语句，</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Map&lt;String, String&gt; map = inheritableThreadLocal.get();</span><br></pre></td></tr></table></figure>
+
+<p>再去查看对应属性，有：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> InheritableThreadLocal&lt;Map&lt;String, String&gt;&gt; inheritableThreadLocal = <span class="keyword">new</span> InheritableThreadLocal&lt;Map&lt;String, String&gt;&gt;() &#123;</span><br></pre></td></tr></table></figure>
+
+<p>显然，<strong>InheritableThreadLocal</strong>是<strong>ThreadLocal</strong>的子类。</p>
+<p><strong>MDC</strong>可由<strong>SLF4J</strong>直接支持，导入即可使用。</p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>大致了解了一下<strong>MDC</strong>，时间有限未想到抽象的业务场景，仅写了一个临时的小<strong>DEMO</strong>，还没写完，感觉博客写得也稀碎，有些东西不是我不想深入，确实我还不会(doge)。希望后面有时间再做补充、修改。</p>
 
       
     </div>
