@@ -6,3 +6,4 @@ title: 首页
 # 欢迎
 
 [linux command](linux-command)
+[multi-datasource-management](multi-datasource-management)
