@@ -5,5 +5,6 @@ title: 首页
 ---
 # 欢迎
 
-[linux command](linux-command)  
-[multi-datasource-management](multi-datasource-management)
+[Linux Command](linux-command)  
+[Multi Datasource Management](multi-datasource-management)
+[Deep Understanding of CPU, Memory, and Concurrency](cpu-memory-concurrency)
