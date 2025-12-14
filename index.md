@@ -3,9 +3,9 @@ layout: default
 title: 首页
 
 ---
-# Welcome
+# 欢迎
 
-[Linux Command](linux-command)  
-[Multi Datasource Management](multi-datasource-management)  
-[Deep Understanding of CPU, Memory, and Concurrency](cpu-memory-concurrency)  
-[From DFS to BFS: Applications of Classic Algorithms in Business](dfs-2-bfs)
+[Linux软件安装命令详解](linux-command)  
+[多数据源管理](multi-datasource-management)  
+[深入理解 CPU、内存与并发](cpu-memory-concurrency)  
+[从 DFS 到 BFS：经典算法在业务中的应用](dfs-2-bfs)
