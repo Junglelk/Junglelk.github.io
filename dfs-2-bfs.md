@@ -1,3 +1,14 @@
+---
+layout: default
+title: 从 DFS 到 BFS：经典算法在业务中的应用
+date: 2025-12-14 22:49
+tags:
+  - Algorithm
+  - Tree
+  - BFS
+  - DFS
+categories: [ algorithm ]
+---
 # 从 DFS 到 BFS：经典算法在业务中的应用
 
 ## 背景

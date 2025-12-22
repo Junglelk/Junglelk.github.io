@@ -1,3 +1,16 @@
+---
+layout: default
+title: 深入理解 CPU、内存与并发
+date: 2025-12-14 22:49
+tags:
+  - Concurrency
+  - CPU
+  - JMM
+  - Memery Model
+  - MESI
+  - Cache
+categories: [ tech ]
+---
 # 深入理解 CPU、内存与并发
 
 本文采取自底向上的方法，从 CPU、内存、线程、指令流水线、缓存一致性协议、内存模型，到Java 内存模型及其
